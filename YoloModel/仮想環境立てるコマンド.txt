@@ -1,3 +1,9 @@
+仮想環境の共有
+gitにあるrequirement.txtをローカルに落とし
+pip install -r requirements.txt
+を実行すると共有できる
+
+
 仮想環境立てるコマンド
 PowerShellで
 
@@ -6,15 +12,18 @@ yolomodel\Scripts\activate
 labelme
 
 もしlabelmeで動かなかったら
+
 (yolomodel) PS D:\ドキュメント\技術発表会\2026年3月2\yolomodel> labelme       
 2026-03-06 15:23:18.530 | INFO     | labelme.__main__:main:192 - Starting Labelme 5.11.3
 qt.qpa.plugin: Could not find the Qt platform plugin "windows" in ""
 This application failed to start because no Qt platform plugin could be initialized. Reinstalling the application may fix this problem.
  
 (yolomodel) PS D:\ドキュメント\技術発表会\2026年3月2\yolomodel> Join-Path ((pip show pyqt5 | Where-Object { $_ -match "^Location:" }) -split ": ")[1] "PyQt5\Qt5\plugins\platforms"
->>
-D:\ドキュメント\技術発表会\2026年3月2\yolomodel\yolomodel\Lib\site-packages\PyQt5\Qt5\plugins\platforms
-(yolomodel) PS D:\ドキュメント\技術発表会\2026年3月2\yolomodel> $env:QT_QPA_PLATFORM_PLUGIN_PATH = "上記コマンドで出たパス"
+
+>>D:\ドキュメント\技術発表会\2026年3月2\yolomodel\yolomodel\Lib\site-packages\PyQt5\Qt5\plugins\platforms
+
+(yolomodel) PS D:\ドキュメント\技術発表会\2026年3月2\yolomodel> $env:QT_QPA_PLATFORM_PLUGIN_PATH = "（上記のパス）D:\ドキュメント\技術 発表会\2026年3月2\yolomodel\yolomodel\Lib\site-packages\PyQt5\Qt5\plugins\platforms"
+
 (yolomodel) PS D:\ドキュメント\技術発表会\2026年3月2\yolomodel> labelme
 
 途中ここから
