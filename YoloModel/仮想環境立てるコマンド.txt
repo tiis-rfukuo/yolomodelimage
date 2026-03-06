@@ -27,7 +27,7 @@ This application failed to start because no Qt platform plugin could be initiali
 (yolomodel) PS D:\ドキュメント\技術発表会\2026年3月2\yolomodel> labelme
 
 途中ここから
-スクリーンショット 2026-03-03 085942.png
+スクリーンショット 2026-03-04 114920.png
 
 発表資料
 ■発表タイトル
