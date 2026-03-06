@@ -1,0 +1,196 @@
+仮想環境立てるコマンド
+PowerShellで
+
+yolomodel\Scripts\activate
+ 
+labelme
+
+もしlabelmeで動かなかったら
+(yolomodel) PS D:\ドキュメント\技術発表会\2026年3月2\yolomodel> labelme       
+2026-03-06 15:23:18.530 | INFO     | labelme.__main__:main:192 - Starting Labelme 5.11.3
+qt.qpa.plugin: Could not find the Qt platform plugin "windows" in ""
+This application failed to start because no Qt platform plugin could be initialized. Reinstalling the application may fix this problem.
+ 
+(yolomodel) PS D:\ドキュメント\技術発表会\2026年3月2\yolomodel> Join-Path ((pip show pyqt5 | Where-Object { $_ -match "^Location:" }) -split ": ")[1] "PyQt5\Qt5\plugins\platforms"
+>>
+D:\ドキュメント\技術発表会\2026年3月2\yolomodel\yolomodel\Lib\site-packages\PyQt5\Qt5\plugins\platforms
+(yolomodel) PS D:\ドキュメント\技術発表会\2026年3月2\yolomodel> $env:QT_QPA_PLATFORM_PLUGIN_PATH = "上記コマンドで出たパス"
+(yolomodel) PS D:\ドキュメント\技術発表会\2026年3月2\yolomodel> labelme
+
+途中ここから
+スクリーンショット 2026-03-03 085942.png
+
+発表資料
+■発表タイトル
+　YOLOで実現する「定量的評価」の自動化
+■キーワード
+　YOLOv8、セグメンテーション、面積算出、スコアリング
+■要約（99字）
+　これまで専門家の経験に頼っていた「傷の割合」や「景観の評価」といった定性的な判断を、YOLOの面積計算によって自動でスコア化します。デモでは、"緑視率"を例に、AIが主観を客観的な数値に変える過程をお見せします。
+
+
+
+進め方
+ 
+はい、承知いたしました。
+YOLOv8とOpenCVを使って、街の「緑視率」を調べるための具体的な手順を、完全なチュートリアル形式で記述します。
+このガイドは、あなたがPC上で実際に手を動かしながら進められるように、環境構築から最終的なグラフ表示まで、ステップ・バイ・ステップで構成されています。
+
+【完全ガイド】YOLOv8で街の「緑視率」を算出する全手順
+このプロジェクトは、大きく分けて4つのフェーズで進めます。
+
+【準備編】 開発環境と学習データを揃える
+【育成編】 「緑」と「人工物」を見分けるカスタムYOLOモデルを鍛える
+【分析編】 鍛えたモデルとOpenCVで「面積」を算出し、スコアを計算する
+【可視化編】 分析結果をグラフにして比較・考察する
+
+フェーズ1：【準備編】 開発環境と学習データを揃える
+目標: コーディングと学習を始めるための土台を固める。
+Python環境の構築:
+PCにPython (3.9以降を推奨)をインストールします。
+プロジェクト用のフォルダを作成し、その中で仮想環境を構築します。
+# ターミナル（コマンドプロンプト）で実行mkdir yolo_green_projectcd yolo_green_project
+python -m venv venv# Windowsの場合.\venv\Scripts\activate# Mac/Linuxの場合 source venv/bin/activate
+必須ライブラリのインストール:
+仮想環境が有効な状態で、以下のコマンドを実行します。
+pip install ultralytics opencv-python labelme matplotlib japanize-matplotlib
+画像データの収集と整理:
+Googleマップのストリートビューで、学習用の画像を50枚ほど収集します。
+Point: 多様な「緑」（木、芝生、植え込み）と「人工物」（建物、道路、車、空）が写っている、様々なパターンの画像を集めます。
+プロジェクトフォルダ内に、以下のような構成でフォルダを作成し、画像を配置します。
+yolo_green_project/
+├── images/          # 収集した画像(50枚)をすべてここに入れる└── (この後、ここにファイルやフォルダが追加されていく)
+
+
+フェーズ2：【育成編】 カスタムYOLOモデルを鍛える
+
+ステップ1：アノテーション（labelmeでの教師データ作成）
+labelmeを起動:
+ターミナルで labelme と入力して起動します。
+フォルダを開く:
+Open Dirボタンを押し、先ほど作成した images フォルダを選択します。
+アノテーション作業:
+クラス（タグ）: greenery と artificial の2種類のみを使います。
+greeneryのタグ付け:
+Create Polygonsツールを選択します。
+画像内の木、芝生、植え込み、草など、植物の輪郭を丁寧にクリックしながら囲みます。
+囲み終えるとクラス名を聞かれるので、greenery と入力します。
+artificialのタグ付け:
+木の幹、枝、建物、道路、空、車、電柱など、「緑」ではないもの全てを artificial として囲みます。
+Point: 画像全体を塗りつぶす必要はありません。「これは緑ではない」とYOLOに教えるための"ヒント"として、主要な部分をいくつか囲むだけで十分です。
+Ctrl + Sで保存すると、imagesフォルダ内に画像と同じ名前の .json ファイルが生成されます。
+この作業を、50枚すべての画像に対して行います。
+
+ステップ2：YOLO形式へのデータ変換
+labelmeのJSON形式をYOLOのTXT形式に変換するスクリプト（convert.py）を、yolo_green_project フォルダ直下に作成します。
+Plain Text
+# convert.py import jsonimport osfrom pathlib import Path
+CLASS_MAP = {'greenery': 0, 'artificial': 1}
+def convert_labelme_to_yolo_segmentation(json_dir):    output_dir = Path(json_dir).parent / "labels"    os.makedirs(output_dir, exist_ok=True)
+    
+    json_files = list(Path(json_dir).glob("*.json"))
+    for json_file in json_files:
+        with open(json_file, 'r') as f:
+            data = json.load(f)
+        image_width, image_height = data['imageWidth'], data['imageHeight']
+        output_path = output_dir / (json_file.stem + ".txt")
+        yolo_annotations = []
+        for shape in data['shapes']:
+            label = shape['label']
+            if label not in CLASS_MAP: continue            class_id = CLASS_MAP[label]
+            points = shape['points']
+            normalized_points = [f"{x / image_width} {y / image_height}" for x, y in points]
+            yolo_line = f"{class_id} " + " ".join(normalized_points)
+            yolo_annotations.append(yolo_line)
+        with open(output_path, 'w') as f:
+            f.write("\n".join(yolo_annotations))
+    print(f"Conversion complete! Converted {len(json_files)} files.")
+if __name__ == '__main__':
+    convert_labelme_to_yolo_segmentation('images')
+ターミナルで python convert.py を実行すると、labels フォルダが作成され、その中にYOLO形式の.txtファイルが生成されます。
+
+ステップ3：データセットの最終準備
+imagesとlabelsフォルダを、train（学習用、例:40枚）とvalid（検証用、例:10枚）に分割します。
+yolo_green_projectフォルダ直下に、data.yamlファイルを作成します。
+# data.yaml
+path: ./  # data.yamlからの相対パス
+train: train/imagesval: valid/images
+nc: 2names: ['greenery', 'artificial']
+ステップ4：学習の実行
+PCに強力なGPUがあればローカルで、なければGoogle Colabにデータセットをアップロードして実行するのがおすすめです。
+Plain Text
+# train.py from ultralytics import YOLO
+def main():# セグメンテーション用の事前学習モデルをロード    model = YOLO('yolov8n-seg.pt')
+    
+    # 学習実行！    results = model.train(
+        data='data.yaml', 
+        epochs=50, 
+        imgsz=640,
+        project='runs', # 結果の保存先        name='green_index_model'    )
+    print("Training finished. Model saved in 'runs/green_index_model/weights/best.pt'")
+if __name__ == '__main__':
+    main()
+ターミナルで python train.py を実行します。学習が完了すると、runs/green_index_model/weights/best.pt に、あなたのカスタムモデルが保存されます。
+
+
+フェーズ3：【分析編】 スコア算出スクリプトの実装
+鍛えたモデルを使い、新しい画像の緑視率を計算するスクリプト（analyze.py）を作成します。
+Plain Text
+# analyze.py import cv2from ultralytics import YOLO
+def calculate_green_view_index(image_path, model_path):    model = YOLO(model_path)
+    results = model(image_path)
+    
+    if not results or results[0].masks is None:
+        return 0.0, None
+    H, W = results[0].orig_shape
+    areas = {'greenery': 0, 'artificial': 0}
+    for i, mask in enumerate(results[0].masks.data):
+        class_id = int(results[0].boxes.cls[i])
+        class_name = model.names[class_id]
+        if class_name in areas:
+            resized_mask = cv2.resize(mask.cpu().numpy(), (W, H))
+            area_in_pixels = cv2.countNonZero(resized_mask)
+            areas[class_name] += area_in_pixels
+    total_area = areas['greenery'] + areas['artificial']
+    if total_area == 0: return 0.0, None
+    score = (areas['greenery'] / total_area) * 100# 結果を可視化するための画像も返す    annotated_image = results[0].plot()
+    
+    return score, annotated_image
+if __name__ == '__main__':
+    CUSTOM_MODEL_PATH = 'runs/green_index_model/weights/best.pt'# 分析したい"初見"の画像を用意する    IMAGE_PATH = 'test_image.jpg' 
+    score, vis_image = calculate_green_view_index(IMAGE_PATH, CUSTOM_MODEL_PATH)
+    
+    if vis_image is not None:
+        print(f"分析画像: {IMAGE_PATH}")
+        print(f"緑視率スコア: {score:.2f} %")
+        # 結果を画像として保存        cv2.imwrite('annotated_result.jpg', vis_image)
+        print("結果を'annotated_result.jpg'に保存しました。")
+このスクリプトを実行すると、指定した画像の緑視率スコアが計算され、セグメンテーション結果が描画された画像が保存されます。
+
+
+フェーズ4：【可視化編】 グラフで比較する
+最後に、対照的な複数の画像（例: park.jpg, city.jpg）でスコアを算出し、Matplotlibでグラフ化します。
+Plain Text
+# visualize.py import matplotlib.pyplot as pltimport japanize_matplotlibfrom analyze import calculate_green_view_index
+CUSTOM_MODEL_PATH = 'runs/green_index_model/weights/best.pt'image_files = {
+    '公園横の道': 'park_view.jpg',
+    '都心部の交差点': 'city_view.jpg'}
+scores = {}for name, path in image_files.items():
+    score, _ = calculate_green_view_index(path, CUSTOM_MODEL_PATH)
+    scores[name] = score
+# 棒グラフで比較plt.figure(figsize=(8, 6))
+bars = plt.bar(scores.keys(), scores.values(), color=['lightgreen', 'gray'])
+plt.title('街の風景別「緑視率スコア」比較', fontsize=16)
+plt.ylabel('緑視率スコア (%)', fontsize=12)
+plt.ylim(0, 100)for bar in bars:
+    yval = bar.get_height()
+    plt.text(bar.get_x() + bar.get_width()/2.0, yval, f'{yval:.1f}%', va='bottom', ha='center', fontsize=12)
+plt.show()
+python visualize.py を実行すると、最終的な成果物である比較グラフが表示されます。
+この4つのフェーズを順番に進めることで、あなたの「緑視率」のアイデアは、具体的な分析結果と説得力のあるグラフとして完成します。
+
+
+
+モデルをYolo用にどう移行する？
+https://qiita.com/yutakam/items/9b4c957273ab2fbfdf4d
+
