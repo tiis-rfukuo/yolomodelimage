@@ -203,3 +203,6 @@ python visualize.py を実行すると、最終的な成果物である比較グ
 モデルをYolo用にどう移行する？
 https://qiita.com/yutakam/items/9b4c957273ab2fbfdf4d
 
+
+セグメンテーション用のモデルに変換
+labelme2yolo --json_dir ./seg_image_pre/ --val_size 0.1 --output_format polygon
