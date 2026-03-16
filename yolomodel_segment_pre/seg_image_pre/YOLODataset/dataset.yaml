@@ -1,7 +1,0 @@
-path: \\?\C:\labelme\seg_image_pre\YOLODataset
-train: images/train
-val: images/val
-test:
-
-names:
-    0: green
